@@ -1,0 +1,129 @@
+---
+title: "Untitled"
+output: pdf_document
+---
+# Data reading 
+```{r}
+rm(list = ls())
+
+setwd("C:/Users/Rishi Solanki/Google Drive/STAT 571 PROJ/Final Project/student")
+# Reading the data files
+ data1 = read.csv('student-mat.csv', header = TRUE, sep = ";", as.is = TRUE)
+ data2 = read.csv('student-por.csv', header = TRUE, sep = ";", as.is = TRUE)
+# data exploration
+ names(data1)
+ names(data2)
+
+# alcohol taking in work day(Dalc) and the latter is alcohol taking in weekend(walc).
+head(data1)
+head(data2)
+
+sum(is.na(data1))
+sum(is.na(data2))
+
+data1$dataset = "d1"
+data2$dataset = "d2"
+
+# write dataset
+data3 = rbind(data1, data2)
+write.csv(data3, file = 'merge.csv', sep = ",",col.names = TRUE )
+```
+
+# Data Cleaning and Exploraion
+```{r}
+data3 = read.csv('merge.csv', header = TRUE, sep = ",", as.is = TRUE)
+# create alc consumption value based on daily & weekend consumption
+data3$alc = round((data3$Walc*2 + data3$Dalc*5)/7)
+
+plot(data3$alc)
+hist(data3$alc, main= 'distribution of alcohol consumption', xlab = "rating", ylab = "frequency", ylim = c(0,650),labels = TRUE, breaks=c(0,1,2,3,4,5))
+
+# distribution by age and alcohol consumption type
+table(data3$age, by=data3$alc )
+
+table(data3$sex, by=data3$alc )
+
+str(data3)
+
+# data cleaning
+attach(data3)
+
+data3$school <- factor(school) #Gabriel Pereira or Mousinho da Silveira
+
+data3$sex <- factor(sex) # male or female
+
+data3$address <- factor(address) # rural or urban
+
+data3$famsize <- factor(famsize) # GT3 LE3
+
+data3$Pstatus <- factor(Pstatus) #  parent's cohabitation status - living together or apart)
+
+data3$Medu <- factor(Medu) # a 0-none, 1- primary education (4th grade), 2- 5th to 9th grade, 3- secondary education or 4 - higher education
+
+data3$Fedu <- factor(Fedu)
+#  teacher, health care related, civil services (e.g. administrative or police), at home or other.
+
+data3$Mjob <- factor(Mjob) 
+
+data3$Fjob <- factor(Fjob)
+
+data3$reason <- factor(reason) # "course"     "home"       "other"     "reputation"
+
+# ?? meaning of reason
+
+data3$guardian <- factor(guardian) # mother father
+
+data3$traveltime <- factor(traveltime) # 1-< 15 min., 2-15 to 30 min., 3-30 min. to 1 hour or 4 -> 1 hour)
+
+data3$studytime <- factor(studytime) #1-< 2 hours, 2- 2 to 5 hours, 3-5 to 10 hours or 4 -> 10 hours
+
+# failures 1<= n <= 3 else 4
+
+data3$schoolsup <- factor(schoolsup) # extra educational school support: yes or no
+
+data3$famsup <- factor(famsup) # family educational support (yes or no)
+
+data3$paid <- factor(paid) #  extra paid classes (yes or no)
+
+data3$activities <- factor(activities) # extra-curricular activities (yes or no)
+
+data3$nursery <- factor(nursery) # attended nursery school (yes or no)
+
+data3$higher <- factor(higher) # wants to take higher education (yes or no)
+
+data3$internet <- factor(internet) # Internet access at home (yes or no) 
+
+data3$romantic <- factor(romantic) # with a romantic relationship (yes or no)
+
+data3$famrel <- ordered(famrel) # family relationship (from 1 - very low to 5- very high)
+data3$freetime <- ordered(freetime) # free time after school (from 1 - very low to 5- very high)
+
+data3$goout <- ordered(goout) # going out with friends (from 1- very low to 5- very high)
+
+data3$Dalc <- ordered(Dalc)
+data3$Walc <- ordered(Walc)
+
+data3$health <- ordered(health) # current health status (from 1- very bad to 5- very good)
+
+# absences, G1, G2, G3 --> continous var
+
+data3$dataset <- factor(dataset) # d1 or d2
+
+data3$alc <- ordered(alc)
+
+detach(data3)
+
+str(data3)
+summary(data3)
+```
+
+# Analysis begins
+```{r}
+rows = dim(data3)[1] # 1044 x 36
+set.seed(1)
+index <- sample(rows, 120) # 120 samples
+
+data.train = data3[index,] # 924 x 36
+data.test = data3[-index,] # 120 x 36
+```
+
