@@ -118,12 +118,126 @@ summary(data3)
 ```
 
 # Analysis begins
+## Training & testing data
 ```{r}
 rows = dim(data3)[1] # 1044 x 36
 set.seed(1)
-index <- sample(rows, 120) # 120 samples
 
-data.train = data3[index,] # 924 x 36
-data.test = data3[-index,] # 120 x 36
+l1 = data3$X[data3$alc == 1]
+l2 = data3$X[data3$alc == 2]
+l3 = data3$X[data3$alc == 3]
+l4 = data3$X[data3$alc == 4]
+l5 = data3$X[data3$alc == 5]
+# sample from every level to a balanced sample
+index1 <- sample(l1, 0.8*length(l1))
+index2 <- sample(l2, 0.8*length(l2))
+index3 <- sample(l3, 0.8*length(l3))
+index4 <- sample(l4, 0.8*length(l4))
+index5 <- sample(l5, 0.8*length(l5))
+
+data.train = data3[c(index1,index2, index3, index4,index5),] # 924 x 36
+data.test = data3[-c(index1,index2, index3, index4,index5),] # 120 x 36
+
+table(data.train$alc)
+table(data.test$alc)
+
+```
+# Approach 1
+##  Ordinal regression model (Cumulative link models)
+Ordinal response variables can be analyzed with omnibus Pearson X^2 tests, base-line logit models or log-linear models
+```{r}
+# Link: https://cran.r-project.org/web/packages/ordinal/vignettes/clm_intro.pdf
+# install.packages(ordinal)
+# we will be using clm (cumulative logit model) from package ordinal 
+library(ordinal)
+beta <- names(data.train)
+beta
+
+clm.input=as.formula(paste("alc", "~",paste(beta[-c(1,35,36,28,29)],collapse = "+"))) 
+clm.input
+
+fit1 <- clm(clm.input,data = data.train)
+summary(fit1)
+fit1.pred <- predict(fit1, data.test, class="response")
+
+fit.t1 <- clm(alc ~ school + sex + age + G1 + G2 + G3 + famrel + freetime + goout + health + failures, data = data.train)
+fit.t1
+summary(fit.t1)
+fitt1.pred <- predict(fit.t1, data.test, type="class")
+
+test = mat.or.vec(211, 2)
+test[,1] = as.matrix(data.test$alc)[,1]
+test[,2] = as.matrix(fitt1.pred$fit)[,1]
+
+table(test[,1], by = test[,2])
+table(test[,1])
+```
+
+# Appraoch 2
+Develop 5 models & find probability for each level separately 
+i.e. 
+Model 1 --> alc < 1 = 0 & alc > 1 = 1
+Model 2 --> alc < 2 = 0 & alc > 2 = 1
+Model 3 --> alc < 3 = 0 & alc > 3 = 1
+Model 4 --> alc < 4 = 0 & alc > 4 = 1
+Model 5 --> alc < 5 = 0 & alc > 5 = 1
+
+
+# Approach 3
+Tree
+```{r}
+library(randomForest)
+library(tree)
+fit.rf=randomForest(clm.input, data.train, mtry=6, ntree=500) 
+plot(fit.rf)     
+
+fit.rf.pred.y=predict(fit.rf, type="class")
+mean(data.train$alc != fit.rf.pred.y)
+
+test = mat.or.vec(dim(data.train)[1], 2)
+test[,1] = as.matrix(data.train$alc)[,1]
+test[,2] = as.matrix(fit.rf.pred.y)[,1]
+
+table(test[,2], by = test[,1])
+
+#      1   2   3   4   5
+#  1 442 108  29  11   6
+#  2  11 115  16   9   6
+#  3   2   6  51   6   3
+#  4   0   0   0   8   0
+#  5   0   0   0   0   4
+table(test[,1])
+#  1   2   3   4   5 
+# 455 229  96  34  19 
+
+# 11 + 108 + 6 + 16 + 29 + 6 + 9 + 11 + 3 + 6 + 6  = 211 / 833 =  0.2533013
+
+predict.rf.test=predict(fit.rf, newdata=data.test, type="class")
+predict.rf.test.prob=predict(fit.rf, newdata=data.test, type="prob")
+
+test2 = mat.or.vec(dim(data.test)[1], 2)
+test2[,1] = as.matrix(data.test$alc)[,1]
+test2[,2] = as.matrix(predict.rf.test)[,1]
+
+table(test2[,2], by = test2[,1])
+#      1   2   3   4   5
+#  1 109  31   9   5   2
+#  2   3  27   1   0   0
+#  3   2   0  15   0   1
+#  4   0   0   0   4   0
+#  5   0   0   0   0   2
+table(test2[,1])
+#  1   2   3   4   5 
+# 114  58  25   9   5 
+
+# error = 3 + 31 + 9 + 1 + 5 + 2 + 1 = 52/ 211 = 0.2464455
+library(pROC)
+roc(data.test$alc, predict.rf.test.prob[,2], plot=TRUE) # 0.8629
+
+
+# using trees
+fit.tree = tree(clm.input, data.train)
+plot(fit.tree)
+text(fit.tree, pretty=TRUE)  # plot the labels
 ```
 
